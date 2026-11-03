@@ -11,6 +11,7 @@
 - [项目计划](docs/PROJECT_PLAN.md)
 - [需求与验收](docs/REQUIREMENTS.md)
 - [明暗水印技术方案草案](docs/WATERMARK_RESEARCH_PLAN.md)
+- [目标系统截图对应的 SDK 接入设计](docs/TARGET_SYSTEM_INTEGRATION.md)
 - [实验与验收协议草案](docs/BENCHMARK_PROTOCOL.md)
 - [架构与信任边界](docs/ARCHITECTURE.md)
 - [接口契约](docs/API_CONTRACT.md)
