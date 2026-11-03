@@ -1,0 +1,12 @@
+{
+  "name": "watermark-new",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": { "node": ">=24 <27" },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm --filter @wm/web build",
+    "typecheck": "pnpm --filter @wm/web typecheck",
+    "test": "pnpm --filter @wm/api test"
+  }
+}
