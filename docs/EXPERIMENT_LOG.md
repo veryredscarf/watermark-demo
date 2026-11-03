@@ -47,3 +47,10 @@
 - 观察：需求编号 15 个、重复 0；Markdown 引用缺失 0；差异空白检查退出码 0；API 测试 3/3 通过；类型检查退出码 0；Vite 构建退出码 0。
 - 限制：这些检查只覆盖已有 S1 演示原型与文档格式；没有暗水印编解码、原图样本或社交平台链路实验。R-13 至 R-15 均未验收。
 - 结论：已有原型的局部回归通过，技术方案仍待用户审阅。
+
+## EXP-005：远程基线分支复核
+
+- 日期：2026-11-03（Asia/Shanghai）；关联阶段：Git 基线接入。
+- 方法：执行 `git ls-remote --heads origin chore/repository-baseline`、`git rev-parse HEAD`、`git rev-parse refs/remotes/origin/chore/repository-baseline` 和 `git status --porcelain=v1`。
+- 观察：远程分支、本地 HEAD、本地远程跟踪引用均为 `8ee14c0b87d437b402297308183f9759250261cb`；工作区无未提交文件。此前推送失败的记录保留为历史，不再代表当前远程状态。
+- 结论：远程基线分支已创建且与本次核对时的本地提交一致；该结论不代表后续提交自动推送成功。
