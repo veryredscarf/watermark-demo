@@ -17,6 +17,6 @@
 
 现有 GET /api/protected/report/view 的 watermark 对象拟增加 covert：algorithmVersion、tilePngBase64、tileSize、opacity。图块与可见码对应同一租约；返回值不包含生成密钥、用户原始标识或可用于访问其他租约的凭据。正式业务接口仍须在返回敏感内容前完成授权与签发。
 
-拟新增 POST /api/watermark/v1/extractions：受权调查员以 multipart/form-data 提交 caseId 和 image；首批接受 PNG、JPEG、WebP，文件上限暂定 20 MiB。服务端先验证调查权限及案件范围，再计算原文件 SHA-256、解码和提取。成功响应包含 status（matched、uncertain、not_detected）、confidence（0–1，经独立样本校准后才提供）、evidenceId、requestId、algorithmVersion；仅 matched 返回最小必要 match 事实。未完成置信度校准时接口不得对外宣称概率或自动归属。错误沿用现有 JSON 错误结构，覆盖 400、401、403、413、415、429、503；对跨租户与不存在租约避免可枚举差异。
+拟新增 POST /api/watermark/v1/extractions：受权调查员以 multipart/form-data 提交 caseId 和 image；首批接受 PNG、JPEG、WebP，文件上限暂定 20 MiB。服务端先验证调查权限及案件范围，再计算原文件 SHA-256、解码和提取。成功响应包含 status（matched、uncertain、not_detected）、detectionScore、evidenceId、requestId、algorithmVersion；仅 matched 返回最小必要 match 事实。confidence（0–1）为可选字段，只有独立样本校准完成后才提供；未校准的 detectionScore 不代表概率。not_detected 表示未达到同步或检测阈值；uncertain 表示有候选信号但纠错、唯一映射或匹配阈值不足。接口不得自动归属责任。错误沿用现有 JSON 错误结构，覆盖 400、401、403、413、415、429、503；对跨租户与不存在租约避免可枚举差异。
 
 图片提取与可见码 verify 是独立调查路径；可见码 OCR 成功不计为暗水印提取成功。所有查询均记审计，原始图片留存、加密和删除期限在生产接入前由业务与安全负责人确认。

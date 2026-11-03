@@ -54,3 +54,10 @@
 - 方法：执行 `git ls-remote --heads origin chore/repository-baseline`、`git rev-parse HEAD`、`git rev-parse refs/remotes/origin/chore/repository-baseline` 和 `git status --porcelain=v1`。
 - 观察：远程分支、本地 HEAD、本地远程跟踪引用均为 `8ee14c0b87d437b402297308183f9759250261cb`；工作区无未提交文件。此前推送失败的记录保留为历史，不再代表当前远程状态。
 - 结论：远程基线分支已创建且与本次核对时的本地提交一致；该结论不代表后续提交自动推送成功。
+
+## EXP-006：技术方案口径复核
+
+- 日期：2026-11-03（Asia/Shanghai）；关联 R-12、R-14、R-15。
+- 方法：核对 T3/T4 分层格子及最小样本数；使用 `rg -o` 检查需求编号，使用 `rg -n` 检查三份方案文档的结果字段与术语，并执行 `git diff --check`。
+- 观察：需求编号 R-01 至 R-15 各出现一次；T3 完整图与 T4 裁剪图各 8 格、每格至少 200 张，合计至少 3200 张；接口与研究方案均规定 `detectionScore` 和仅在校准后提供的可选 `confidence`；空白检查退出码 0。
+- 结论：本轮文档口径一致性检查通过；没有暗水印实现或真实链路成功率证据。

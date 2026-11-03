@@ -15,7 +15,7 @@
 
 - WATERMARK_RESEARCH_PLAN.md：明暗水印候选编码、绘制、提取、接口和安全边界；状态为待用户审阅。
 - BENCHMARK_PROTOCOL.md：T0–T4 分层、原图硬门槛、真实双次转发矩阵、负样本和防回退规则；所有阈值均为目标，尚无暗水印实测结果。
-- 已同步 REQUIREMENTS.md、ARCHITECTURE.md、API_CONTRACT.md、PROJECT_PLAN.md、DEVELOPMENT_WORKFLOW.md、DECISIONS.md、AGENTS.md 和 README.md。没有编写或修改新功能代码。
+- 已同步 REQUIREMENTS.md、ARCHITECTURE.md、API_CONTRACT.md、PROJECT_PLAN.md、DEVELOPMENT_WORKFLOW.md、DECISIONS.md、AGENTS.md 和 README.md；本轮进一步澄清 T3/T4 矩阵口径、结果分类与置信度字段。没有编写或修改新功能代码。
 
 ## 实际验证证据
 
@@ -24,6 +24,7 @@
 | Git 基线文件审计 | 本地通过 | EXP-003：29 个跟踪文件，禁入路径 0；远程历史已合并 |
 | 远程基线分支 | 已核对 | EXP-005：`ls-remote` 与本地 HEAD 均为 `8ee14c0`；后续提交需单独核对 |
 | 文档编号与引用 | 通过 | EXP-004：15 个需求编号无重复，Markdown 引用缺失 0，git diff --check 退出码 0 |
+| 方案口径复核 | 文档检查通过 | EXP-006：T3/T4 各 8 格、合计至少 3200 张；提取结果字段一致；未运行功能实验 |
 | S1 API 测试 | 局部通过 | EXP-004：Node 24 下 3/3 通过 |
 | Vue 类型检查与构建 | 局部通过 | EXP-004：两项退出码 0 |
 | 暗水印原图与真实转发 | 未运行 | 无编解码器、无固定样本和真实链路结果 |
