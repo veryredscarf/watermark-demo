@@ -4,9 +4,13 @@
 
 ## 每次开始工作时
 
-1. 按顺序阅读 `docs/PROJECT_STATE.md`、`docs/REQUIREMENTS.md`、`docs/ARCHITECTURE.md`、`docs/API_CONTRACT.md`、`docs/DEVELOPMENT_WORKFLOW.md`、`docs/DECISIONS.md`；涉及既有实验时再读 `docs/EXPERIMENT_LOG.md`。
+1. 按顺序阅读 `docs/PROJECT_STATE.md`、`docs/REQUIREMENTS.md`、`docs/ARCHITECTURE.md`、`docs/API_CONTRACT.md`、`docs/DEVELOPMENT_WORKFLOW.md`、`docs/DECISIONS.md`；涉及暗水印时还要读 `docs/WATERMARK_RESEARCH_PLAN.md` 与 `docs/BENCHMARK_PROTOCOL.md`；涉及既有实验时再读 `docs/EXPERIMENT_LOG.md`。
 2. 检查工作区文件和版本状态；不要假设上次操作已经成功，也不要覆盖不明来源的改动。
 3. 用一句话确认本次任务对应的需求编号、当前阶段和预期验收证据。若需求与记录冲突，先核对用户最新要求并更新文档。
+
+## 当前暂停门槛
+
+现有 S1 代码是未验收基线。先完成 Git 独立分支接入与技术方案审阅；用户确认方案前，只能修改方案、规范和验证设计，不继续编写暗水印或其他新功能代码。不得把目标指标或候选算法描述为已经通过。
 
 ## 不可省略的开发顺序
 
@@ -14,9 +18,15 @@
 
 - 开始写功能代码前，相关需求必须有可检查的验收标准，涉及安全边界的设计必须记录在 `docs/ARCHITECTURE.md` 或 `docs/DECISIONS.md`。
 - 修复缺陷前，先记录复现条件、预期与实际结果；修复后使用同一条件复验，并检查相邻功能。
-- 实验只改变一个主要变量；记录环境、版本、命令、样本、原始观察和结论。不能把推测写成已验证事实。
+- 实验只改变一个主要变量；记录环境、代码提交、参数、样本清单散列、命令、逐图观察和结论。不能把推测写成已验证事实。暗水印原图 T1 失败时停止更高层级验收，并把失败样本加入永久回归集。
 - 仅在有实际命令输出或人工检查记录时，才标记“已通过”。失败和未运行要明确写出。
 - 每次结束工作前更新 `docs/PROJECT_STATE.md`：完成项、验证证据、未解决问题、下一个最小动作。需要新的产品或安全决定时，在 `docs/DECISIONS.md` 记录候选方案和理由。
+
+## Git 提交卫生
+
+- 功能、实验与文档改动进入独立分支，通过 PR 审查后才合并 main。提交信息采用 feat/fix/test/docs/chore 类型，关联需求和实验编号。
+- 提交前显式暂存文件并核对 git diff --cached --name-only、空白检查、禁入路径和密钥扫描；不要盲目全量暂存。
+- node_modules、包缓存、构建产物、.env、密钥、真实业务截图、原始社交平台样本和大型模型文件不得提交或推送；.gitignore 不能替代暂存区检查。
 
 ## 工程约束
 
@@ -39,5 +49,7 @@
 | `docs/DECISIONS.md` | 重要选择、待定问题和变更理由 |
 | `docs/EXPERIMENT_LOG.md` | 可复现实验和原始验证结果 |
 | `docs/PROJECT_STATE.md` | 当前唯一进度快照和下一步 |
+| `docs/WATERMARK_RESEARCH_PLAN.md` | 明暗水印算法、数据流和提取接口候选 |
+| `docs/BENCHMARK_PROTOCOL.md` | 样本、分层指标、回归和发布门槛 |
 
 若文档与代码不一致，应先查证实际行为，再修正文档或代码；不能静默接受偏差。
