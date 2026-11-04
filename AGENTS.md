@@ -4,7 +4,7 @@
 
 ## 每次开始工作时
 
-1. 按顺序阅读 `docs/PROJECT_STATE.md`、`docs/REQUIREMENTS.md`、`docs/ARCHITECTURE.md`、`docs/API_CONTRACT.md`、`docs/DEVELOPMENT_WORKFLOW.md`、`docs/DECISIONS.md`；涉及暗水印时还要读 `docs/WATERMARK_RESEARCH_PLAN.md` 与 `docs/BENCHMARK_PROTOCOL.md`；涉及真实业务系统接入时还要读 `docs/TARGET_SYSTEM_INTEGRATION.md`；涉及既有实验时再读 `docs/EXPERIMENT_LOG.md`。
+1. 按顺序阅读 `docs/PROJECT_STATE.md`、`docs/REQUIREMENTS.md`、`docs/ARCHITECTURE.md`、`docs/API_CONTRACT.md`、`docs/DEVELOPMENT_WORKFLOW.md`、`docs/DECISIONS.md`；涉及暗水印时还要读 `docs/WATERMARK_RESEARCH_PLAN.md` 与 `docs/BENCHMARK_PROTOCOL.md`；涉及真实业务系统接入时还要读 `docs/TARGET_SYSTEM_INTEGRATION.md`；涉及签发存储或重启恢复时还要读 `docs/LOCAL_STORAGE_PLAN.md`；涉及既有实验时再读 `docs/EXPERIMENT_LOG.md`。
 2. 检查工作区文件和版本状态；不要假设上次操作已经成功，也不要覆盖不明来源的改动。
 3. 用一句话确认本次任务对应的需求编号、当前阶段和预期验收证据。若需求与记录冲突，先核对用户最新要求并更新文档。
 
