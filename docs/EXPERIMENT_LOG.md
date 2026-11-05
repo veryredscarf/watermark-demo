@@ -85,3 +85,10 @@
 - 方法：新增 LOCAL_STORAGE_PLAN.md，核对架构、需求、里程碑和实验门槛；检查本地 Markdown 链接、需求编号、`git check-ignore` 对数据库主文件及侧文件的规则，并执行 `git diff --check`。
 - 观察：Markdown 文件 14 个、本地链接 11 个、缺失 0；需求编号 16 个、重复 0；四个数据库文件路径均被忽略；差异空白检查退出码 0。
 - 结论：文档与仓库忽略规则检查通过。SQLite 尚未安装或接入，重启恢复、事务和备份仍是待实现验收项。
+## EXP-010：SQLite 协作方案文档复核
+
+- 日期：2026-11-05（Asia/Shanghai）；关联 R-08、ADR-013。
+- 输入：用户询问 SQLite 文件不进 Git 是否影响多人协作。
+- 方法：核对 LOCAL_STORAGE_PLAN.md 与 ADR-013；检查数据库主文件及 WAL/SHM 侧文件的 `git check-ignore -v`，用 PowerShell 检查需求编号与本地 Markdown 链接，执行 `git diff --check`。
+- 观察：数据库三个路径均被 `artifacts/` 规则忽略；需求编号 16 个、重复 0；Markdown 文件 14 个、本地链接缺失 0；空白检查退出码 0。首次链接检查脚本未处理根目录文件，报错后修正并重跑通过。
+- 结论：团队共享迁移与虚构种子数据的方案文档已补齐；未创建实际 SQLite 文件、初始化脚本或验证多人环境重建。
