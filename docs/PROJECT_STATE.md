@@ -1,6 +1,6 @@
 # 项目状态
 
-更新日期：2026-11-05（Asia/Shanghai）
+更新日期：2026-11-06（Asia/Shanghai）
 阶段：Git 基线接入与技术方案审阅；功能代码开发暂停
 
 ## 当前事实
@@ -17,11 +17,13 @@
 
 - 2026-11-05 全栈方案审查形成 `docs/TECHNICAL_REVIEW.md`：F-01 至 F-09 为待审意见，涉及内容出口、真实接入、图块复制、协议冻结、统计口径、上传边界、密钥与 SQLite 运维、页面租约一致性、演示隔离。尚未修改已接受需求或实现代码。
 
+- 2026-11-06 方案复核确认仍有待定项：全部列表路由与内容出口清单、裁剪档内尺寸/形状/位置配额、平台与设备版本覆盖、生产身份与接口集成、密钥和本地存储运行策略。新增 F-10/F-11 审查意见；不将这些待定项写成已通过验收。
+
 ## 本轮文档交付
 
 - WATERMARK_RESEARCH_PLAN.md：明暗水印候选编码、绘制、提取、接口和安全边界；状态为待用户审阅。
 - BENCHMARK_PROTOCOL.md：T0–T4 分层、原图硬门槛、真实双次转发矩阵、负样本和防回退规则；所有阈值均为目标，尚无暗水印实测结果。
-- TARGET_SYSTEM_INTEGRATION.md：按截图结构约定 SDK 挂载、覆盖区域、交互验收和未来真实系统接入边界；未复制截图或业务数据。
+- TARGET_SYSTEM_INTEGRATION.md：按四张已获授权并存入仓库的参考截图约定 SDK 挂载、覆盖区域、交互验收和未来真实系统接入边界；这些截图不是水印实验样本。
 - LOCAL_STORAGE_PLAN.md 与 ADR-013：建议首个签发版本使用本机 SQLite，明确数据模型、事务、重启、备份和故障验收；旧 ADR-012 已标记为被取代。没有安装或创建数据库。
 - 已同步 REQUIREMENTS.md、ARCHITECTURE.md、API_CONTRACT.md、PROJECT_PLAN.md、DEVELOPMENT_WORKFLOW.md、DECISIONS.md、AGENTS.md 和 README.md；本轮进一步澄清 T3/T4 矩阵口径、结果分类与置信度字段。没有编写或修改新功能代码。
 
