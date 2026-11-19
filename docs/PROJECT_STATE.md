@@ -12,6 +12,7 @@
 - Node 20.20.1 兼容实验改用 `sql.js` SQLite WebAssembly，按写入导出全库并替换本机 `.sqlite` 文件；默认文件位于 Git 忽略的 `artifacts/runtime/`。旧版非空 WAL 需先备份和检查点。演示用户在代码中，会话仍在内存；多实例、真实身份、迁移、掉电恢复和生产运维未完成。见 ADR-016、EXP-013。
 - 既有 `chore/repository-baseline` 是未验收基线，本轮代码位于独立功能分支。先前出现的来源不明 `watermarkNew.zip` 未纳入本轮改动或暂存。
 - 功能提交 `80dacbf0d925f45c21318b2e7bf4e347d5bf3718` 已推送并以 `git ls-remote origin refs/heads/feat/login-watermark-image` 核对同一 SHA；核对时 `origin/main` 仍为 `459e0b2e57ad5c2b37aec0e63eb8140f532f3623`。此后的文档收尾提交须另行核对远程。
+- Node 20 兼容提交 `5a58fe7817209d1625c9679bacb71fcf1fd10a4b` 已推送至 `feat/node20-compat` 并以 `git ls-remote` 核对同一 SHA；`main` 仍为 `459e0b2e57ad5c2b37aec0e63eb8140f532f3623`。本状态文档的收尾提交须再核对远程。
 
 ## 已运行验证
 
