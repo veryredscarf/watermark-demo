@@ -1,6 +1,6 @@
 # 项目状态
 
-更新日期：2026-11-18（Asia/Shanghai）
+更新日期：2026-11-19（Asia/Shanghai）
 阶段：独立功能分支 `feat/login-watermark-image` 的限定实验实现；未达到上线标准，也未合并 main
 
 ## 已确认范围与当前实现
@@ -11,6 +11,7 @@
 - 暂定输入下限为宽至少 640 且高至少 360 像素，任一边更小即返回证据不足。达到尺寸仍须有足够图案，不保证任意区域成功；这不是 A→B→C 两次非原图转发的支持下限。
 - Node.js 内置 SQLite 持久化租约映射和审计，默认文件位于 Git 忽略的 `artifacts/runtime/`；演示用户在代码中，演示会话仍在内存。真实身份、迁移、备份和生产运维未完成。
 - 既有 `chore/repository-baseline` 是未验收基线，本轮代码位于独立功能分支。先前出现的来源不明 `watermarkNew.zip` 未纳入本轮改动或暂存。
+- 功能提交 `80dacbf0d925f45c21318b2e7bf4e347d5bf3718` 已推送并以 `git ls-remote origin refs/heads/feat/login-watermark-image` 核对同一 SHA；核对时 `origin/main` 仍为 `459e0b2e57ad5c2b37aec0e63eb8140f532f3623`。此后的文档收尾提交须另行核对远程。
 
 ## 已运行验证
 
