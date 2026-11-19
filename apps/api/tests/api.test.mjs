@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, rmdirSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, renameSync, rmSync, rmdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApiServer } from '../server.mjs'
@@ -85,6 +85,27 @@ test('SQLite 文件跨服务重启仍可核验签发记录', async () => {
     } finally { await second.close() }
   } finally {
     for (const name of ['watermark.sqlite', 'watermark.sqlite-wal', 'watermark.sqlite-shm']) rmSync(join(dir, name), { force: true })
+    rmdirSync(dir)
+  }
+})
+
+test('本地 SQLite 持久化失败时不返回水印或受保护内容', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wm-storage-fail-'))
+  const dbPath = join(dir, 'watermark.sqlite')
+  const saved = `${dbPath}.saved`
+  const api = await startApi({ dbPath })
+  try {
+    renameSync(dbPath, saved)
+    mkdirSync(dbPath)
+    const result = await request(api, '/api/demo/login', { method: 'POST', body: { userKey: 'qinghe' } })
+    assert.equal(result.response.status, 503)
+    assert.equal(result.data.watermark, undefined)
+    assert.equal(result.response.headers.get('set-cookie'), null)
+    assert.equal((await request(api, '/api/protected/report/view')).response.status, 401)
+  } finally {
+    await api.close()
+    rmdirSync(dbPath)
+    rmSync(saved, { force: true })
     rmdirSync(dir)
   }
 })

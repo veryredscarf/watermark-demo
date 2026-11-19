@@ -1,9 +1,8 @@
 import { createServer } from 'node:http'
 import { randomBytes, randomUUID, createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import { resolve, dirname } from 'node:path'
-import { mkdirSync } from 'node:fs'
-import { DatabaseSync } from 'node:sqlite'
+import { resolve } from 'node:path'
+import { openStorage } from './storage.mjs'
 import { createWatermarkImage } from './watermark-image.mjs'
 
 const USERS = Object.freeze({
@@ -79,9 +78,8 @@ async function readJson(req) {
 }
 
 export function createApiServer({ now = () => Date.now(), signingAvailable = () => true, webOrigin = 'http://localhost:5173', dbPath = resolve('artifacts/runtime/watermark.sqlite') } = {}) {
-  if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true })
-  const db = new DatabaseSync(dbPath)
-  db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS leases (raw TEXT PRIMARY KEY, signal_id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, subject_id TEXT NOT NULL, alias TEXT NOT NULL, resource_id TEXT NOT NULL, access_event_id TEXT NOT NULL, issued_at TEXT NOT NULL, expires_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, type TEXT NOT NULL, at TEXT NOT NULL, detail TEXT NOT NULL)')
+  const db = openStorage(dbPath)
+  db.exec('CREATE TABLE IF NOT EXISTS leases (raw TEXT PRIMARY KEY, signal_id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, subject_id TEXT NOT NULL, alias TEXT NOT NULL, resource_id TEXT NOT NULL, access_event_id TEXT NOT NULL, issued_at TEXT NOT NULL, expires_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, type TEXT NOT NULL, at TEXT NOT NULL, detail TEXT NOT NULL)')
   const sessions = new Map()
   const audit = []
   const verifyAttempts = new Map()

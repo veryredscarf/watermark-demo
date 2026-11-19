@@ -1,12 +1,13 @@
 {
   "name": "watermark-new",
   "private": true,
-  "packageManager": "pnpm@11.25.0",
-  "engines": { "node": ">=24 <27" },
+  "packageManager": "pnpm@10.34.9",
+  "engines": { "node": "^20.19.0 || ^22.12.0 || ^24.0.0" },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm --filter @wm/web build",
     "typecheck": "pnpm --filter @wm/web typecheck",
-    "test": "pnpm --filter @wm/api test && node --test packages/watermark-core/tests/extract.test.mjs"
-  }
+    "test": "pnpm --filter @wm/api test && node --import tsx --test packages/watermark-core/tests/extract.test.mjs"
+  },
+  "devDependencies": { "tsx": "4.23.15", "ws": "8.18.3" }
 }

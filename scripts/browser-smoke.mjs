@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import WebSocket from 'ws'
 
 const root = process.cwd()
 const node = process.execPath
@@ -30,7 +31,7 @@ const waitUrl = async url => {
 
 try {
   start(node, ['apps/api/server.mjs'], root, { ...process.env, WM_DB_PATH: ':memory:' })
-  start(node, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--configLoader', 'native'], join(root, 'apps/web'))
+  start(node, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1'], join(root, 'apps/web'))
   await waitUrl('http://127.0.0.1:5173/')
   start(chrome, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--remote-debugging-port=9227', `--user-data-dir=${profile}`, '--window-size=1280,720'])
   const browser = await (await waitUrl('http://127.0.0.1:9227/json/version')).json()
