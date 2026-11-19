@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import WatermarkOverlay from '../../../packages/watermark-vue/src/WatermarkOverlay.vue'
-import { isWatermarkLease, type WatermarkLease } from '../../../packages/watermark-core/src/index'
+import { extractCurrentSignal, isWatermarkLease, type ExtractionResult, type WatermarkLease } from '../../../packages/watermark-core/src/index'
 
 type User = { alias: string; role: string; tenantId: string }
 type Report = { title: string; rows: { label: string; value: string }[] }
@@ -22,7 +22,10 @@ const busy = ref(false)
 const codeInput = ref('')
 const caseId = ref('CASE-DEMO-001')
 const match = ref<Record<string, string> | null>(null)
+const extraction = ref<ExtractionResult | null>(null)
+const uploadedName = ref('')
 let generation = 0
+let inspectRequest = 0
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
 function stopRefresh() {
@@ -30,8 +33,15 @@ function stopRefresh() {
   refreshTimer = null
 }
 
+function scheduleRefresh(watermark: WatermarkLease) {
+  stopRefresh()
+  const delay = Math.max(1000, Math.min(240_000, Date.parse(watermark.expiresAt) - Date.now() - 30_000))
+  refreshTimer = setTimeout(() => { void refreshWatermark() }, delay)
+}
+
 function clearProtectedView() {
   stopRefresh()
+  ++inspectRequest
   report.value = null
   lease.value = null
 }
@@ -45,7 +55,8 @@ async function requestJson(path: string, options: RequestInit = {}) {
 
 async function loadReport() {
   const thisGeneration = ++generation
-  clearProtectedView()
+  stopRefresh()
+  report.value = null
   busy.value = true
   status.value = ''
   try {
@@ -56,8 +67,7 @@ async function loadReport() {
     }
     report.value = body.content as Report
     lease.value = body.watermark
-    const delay = Math.max(1000, Math.min(240_000, Date.parse(body.watermark.expiresAt) - Date.now() - 30_000))
-    refreshTimer = setTimeout(() => { void loadReport() }, delay)
+    scheduleRefresh(body.watermark)
   } catch (error) {
     if (thisGeneration !== generation) return
     clearProtectedView()
@@ -67,9 +77,25 @@ async function loadReport() {
   }
 }
 
+async function refreshWatermark() {
+  const thisGeneration = ++generation
+  clearProtectedView()
+  try {
+    const body = await requestJson('/api/demo/refresh-watermark', { method: 'POST' })
+    if (thisGeneration !== generation) return
+    if (!isWatermarkLease(body.watermark)) throw new Error('服务端返回的水印图片无效')
+    lease.value = body.watermark
+    scheduleRefresh(body.watermark)
+    extraction.value = null
+    if (user.value?.role === 'employee') await loadReport()
+  } catch (error) {
+    if (thisGeneration === generation) status.value = error instanceof Error ? error.message : '刷新水印失败'
+  }
+}
 async function login() {
   ++generation
   clearProtectedView()
+  extraction.value = null
   match.value = null
   user.value = null
   busy.value = true
@@ -80,8 +106,13 @@ async function login() {
       body: JSON.stringify({ userKey: selectedIdentity.value }),
     })
     user.value = body.user as User
+    if (!isWatermarkLease(body.watermark)) throw new Error('服务端返回的水印图片无效')
+    lease.value = body.watermark
+    scheduleRefresh(body.watermark)
     if (user.value?.role === 'employee') await loadReport()
   } catch (error) {
+    user.value = null
+    clearProtectedView()
     status.value = error instanceof Error ? error.message : '登录失败'
   } finally {
     busy.value = false
@@ -91,6 +122,7 @@ async function login() {
 async function logout() {
   ++generation
   clearProtectedView()
+  extraction.value = null
   match.value = null
   user.value = null
   status.value = ''
@@ -98,6 +130,36 @@ async function logout() {
   catch { status.value = '会话清理失败，请刷新页面确认状态' }
 }
 
+async function inspectFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  extraction.value = null
+  if (!file || !lease.value) return
+  const signalId = lease.value.signalId
+  const thisInspection = ++inspectRequest
+  uploadedName.value = file.name
+  status.value = ''
+  try {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('仅接受 PNG、JPEG 或 WebP 图片')
+    if (file.size > 20 * 1024 * 1024) throw new Error('图片不能超过 20 MiB')
+    const bitmap = await createImageBitmap(file)
+    if (thisInspection !== inspectRequest || lease.value?.signalId !== signalId) { bitmap.close(); return }
+    if (bitmap.width * bitmap.height > 16_000_000) { bitmap.close(); throw new Error('图片像素不能超过 1600 万') }
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (!context) { bitmap.close(); throw new Error('无法读取图片像素') }
+    context.drawImage(bitmap, 0, 0)
+    bitmap.close()
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+    const result = extractCurrentSignal(pixels.data, canvas.width, canvas.height, signalId)
+    if (thisInspection === inspectRequest && lease.value?.signalId === signalId) extraction.value = result
+  } catch (error) {
+    if (thisInspection === inspectRequest) status.value = error instanceof Error ? error.message : '图片提取失败'
+  }
+  finally { input.value = '' }
+}
 async function verify() {
   match.value = null
   status.value = ''
@@ -119,8 +181,18 @@ onMounted(async () => {
   try {
     const body = await requestJson('/api/demo/me')
     user.value = body.user as User
-    if (user.value?.role === 'employee') await loadReport()
-  } catch { /* 无演示会话时展示身份选择 */ }
+    if (!isWatermarkLease(body.watermark)) throw new Error('服务端返回的水印图片无效')
+    lease.value = body.watermark
+    if (Date.parse(body.watermark.expiresAt) <= Date.now()) await refreshWatermark()
+    else if (user.value?.role === 'employee') await loadReport()
+    else scheduleRefresh(body.watermark)
+  } catch {
+    if (user.value) {
+      user.value = null
+      clearProtectedView()
+      status.value = '无法恢复有效水印，请重新登录'
+    }
+  }
 })
 onBeforeUnmount(() => { ++generation; clearProtectedView() })
 </script>
@@ -162,7 +234,7 @@ onBeforeUnmount(() => { ++generation; clearProtectedView() })
           <div v-if="user.role === 'employee'" class="panel report-panel">
             <div class="panel-heading"><span class="panel-index">02 / 受保护内容</span><h3>{{ report?.title ?? '正在读取报表' }}</h3><p>内容与水印由同一次授权请求返回。签发失败时不会展示报表。</p></div>
             <div v-if="report" class="stat-grid"><div v-for="row in report.rows" :key="row.label" class="stat-card"><span>{{ row.label }}</span><strong>{{ row.value }}</strong><small>虚构演示数据</small></div></div>
-            <div v-if="lease" class="lease-note"><span class="lease-icon">✓</span><div><strong>水印已签发</strong><small>追溯码 {{ lease.code }} · {{ lease.policyVersion }}</small></div><button type="button" class="text-button" :disabled="busy" @click="loadReport">重新签发 ↗</button></div>
+            <div v-if="lease" class="lease-note"><span class="lease-icon">✓</span><div><strong>水印已签发</strong><small>追溯码 {{ lease.code }} · {{ lease.policyVersion }}</small></div><button type="button" class="text-button" :disabled="busy" @click="refreshWatermark">重新签发 ↗</button></div>
             <button v-if="!report" class="secondary-button" type="button" :disabled="busy" @click="loadReport">{{ busy ? '加载中…' : '重试加载' }}</button>
           </div>
 
@@ -175,6 +247,13 @@ onBeforeUnmount(() => { ++generation; clearProtectedView() })
           <div v-else class="panel access-panel"><span class="panel-index">权限验证</span><h3>当前身份没有报表访问权限</h3><p>可切换为员工或调查员，分别检查受保护内容与核验流程。</p><button class="secondary-button" type="button" :disabled="busy" @click="loadReport">尝试访问报表</button></div>
         </template>
 
+        <section v-if="lease" class="panel lab-panel">
+          <div class="panel-heading"><span class="panel-index">04 / 图片实验台</span><h3>服务端当前水印图片</h3><p>模拟登录返回的原图块；当前自检只比较本次租约，不代表真实泄露调查或平台转发验收。</p></div>
+          <img class="watermark-preview" :src="lease.imageDataUrl" width="160" height="160" alt="服务端返回的当前水印图块" />
+          <p>图块版本 {{ lease.algorithmVersion }} · 当前码 {{ lease.code }} · 暂定最小截图 640×360 像素</p>
+          <label class="upload-label">上传页面原始截图自检 <input type="file" accept="image/png,image/jpeg,image/webp" @change="inspectFile" /></label>
+          <p v-if="extraction">{{ uploadedName }}：{{ extraction.status === 'matched' ? '匹配当前水印' : extraction.status === 'uncertain' ? '证据不足' : '未检出' }}；{{ extraction.recoveredSignalId ? `提取标识 ${extraction.recoveredSignalId}；` : '' }}检测分数 {{ extraction.score.toFixed(2) }}，匹配位 {{ extraction.matchingBits }}/64。</p>
+        </section>
         <p v-if="status" class="status-message" role="alert">{{ status }}</p>
       </section>
 

@@ -7,6 +7,6 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm --filter @wm/web build",
     "typecheck": "pnpm --filter @wm/web typecheck",
-    "test": "pnpm --filter @wm/api test"
+    "test": "pnpm --filter @wm/api test && node --test packages/watermark-core/tests/extract.test.mjs"
   }
 }

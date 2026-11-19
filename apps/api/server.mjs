@@ -1,7 +1,10 @@
 import { createServer } from 'node:http'
 import { randomBytes, randomUUID, createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import { resolve } from 'node:path'
+import { resolve, dirname } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
+import { createWatermarkImage } from './watermark-image.mjs'
 
 const USERS = Object.freeze({
   qinghe: { id: 'u-a-01', alias: '青禾', role: 'employee', tenantId: 'alpha' },
@@ -75,16 +78,37 @@ async function readJson(req) {
   }
 }
 
-export function createApiServer({ now = () => Date.now(), signingAvailable = () => true, webOrigin = 'http://localhost:5173' } = {}) {
+export function createApiServer({ now = () => Date.now(), signingAvailable = () => true, webOrigin = 'http://localhost:5173', dbPath = resolve('artifacts/runtime/watermark.sqlite') } = {}) {
+  if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true })
+  const db = new DatabaseSync(dbPath)
+  db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS leases (raw TEXT PRIMARY KEY, signal_id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, subject_id TEXT NOT NULL, alias TEXT NOT NULL, resource_id TEXT NOT NULL, access_event_id TEXT NOT NULL, issued_at TEXT NOT NULL, expires_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, type TEXT NOT NULL, at TEXT NOT NULL, detail TEXT NOT NULL)')
   const sessions = new Map()
-  const leases = new Map()
   const audit = []
   const verifyAttempts = new Map()
 
   function record(type, detail) {
-    audit.push({ type, at: new Date(now()).toISOString(), ...detail })
+    const event = { type, at: new Date(now()).toISOString(), ...detail }
+    db.prepare('INSERT INTO audit_events (id, type, at, detail) VALUES (?, ?, ?, ?)').run(randomUUID(), type, event.at, JSON.stringify(detail))
+    audit.push(event)
   }
 
+  function issueWatermark(user, resourceId = 'list-pages') {
+    if (!signingAvailable()) throw Object.assign(new Error('水印服务暂不可用'), { status: 503, code: 'SIGNING_UNAVAILABLE' })
+    const raw = encodeBase32(randomBytes(12))
+    const signalId = randomBytes(8).toString('hex')
+    const issuedAt = new Date(now()).toISOString()
+    const expiresAt = new Date(now() + LEASE_MS).toISOString()
+    const accessEventId = randomUUID()
+    const code = formatCode(raw)
+    const image = createWatermarkImage({ signalId, code, alias: user.alias })
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.prepare('INSERT INTO leases (raw, signal_id, tenant_id, subject_id, alias, resource_id, access_event_id, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(raw, signalId, user.tenantId, user.id, user.alias, resourceId, accessEventId, issuedAt, expiresAt)
+      db.prepare('INSERT INTO audit_events (id, type, at, detail) VALUES (?, ?, ?, ?)').run(randomUUID(), 'lease_issued', issuedAt, JSON.stringify({ accessEventId, codeHash: createHash('sha256').update(raw).digest('hex') }))
+      db.exec('COMMIT')
+    } catch (error) { db.exec('ROLLBACK'); throw error }
+    return { code, issuedAt, expiresAt, displayText: `内部资料 · ${user.alias}`, policyVersion: 'lab-v1', layout: { density: 'standard', opacity: 0.05 }, ...image }
+  }
   function send(res, status, data, requestId, extraHeaders = {}) {
     res.writeHead(status, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -124,10 +148,11 @@ export function createApiServer({ now = () => Date.now(), signingAvailable = () 
         const body = await readJson(req)
         const user = USERS[body?.userKey]
         if (!user) return fail(res, 400, 'UNKNOWN_DEMO_USER', '演示身份无效', requestId)
+        const watermark = issueWatermark(user)
         const sid = randomBytes(32).toString('hex')
-        sessions.set(sid, { user, expiresAt: now() + SESSION_MS })
+        sessions.set(sid, { user, watermark, expiresAt: now() + SESSION_MS })
         record('login', { requestId, subjectId: user.id, tenantId: user.tenantId })
-        return send(res, 200, { user: { alias: user.alias, role: user.role, tenantId: user.tenantId } }, requestId, {
+        return send(res, 200, { user: { alias: user.alias, role: user.role, tenantId: user.tenantId }, watermark }, requestId, {
           'Set-Cookie': `${COOKIE_NAME}=${sid}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=3600`,
         })
       }
@@ -145,7 +170,7 @@ export function createApiServer({ now = () => Date.now(), signingAvailable = () 
       }
 
       if (req.method === 'GET' && pathname === '/api/demo/me') {
-        return send(res, 200, { user: { alias: user.alias, role: user.role, tenantId: user.tenantId } }, requestId)
+        return send(res, 200, { user: { alias: user.alias, role: user.role, tenantId: user.tenantId }, watermark: session.watermark }, requestId)
       }
 
       if (req.method === 'GET' && pathname === '/api/protected/report/view') {
@@ -153,29 +178,19 @@ export function createApiServer({ now = () => Date.now(), signingAvailable = () 
           record('access_denied', { requestId, subjectId: user.id, tenantId: user.tenantId, resourceId: 'report' })
           return fail(res, 403, 'FORBIDDEN', '没有访问权限', requestId)
         }
-        if (!signingAvailable()) {
-          record('signing_unavailable', { requestId, subjectId: user.id, tenantId: user.tenantId, resourceId: 'report' })
-          return fail(res, 503, 'SIGNING_UNAVAILABLE', '水印服务暂不可用', requestId)
-        }
-        let raw
-        do { raw = encodeBase32(randomBytes(12)) } while (leases.has(raw))
-        const issuedAt = new Date(now()).toISOString()
-        const expiresAt = new Date(now() + LEASE_MS).toISOString()
-        const accessEventId = randomUUID()
-        const code = formatCode(raw)
-        const lease = { code, tenantId: user.tenantId, subjectId: user.id, alias: user.alias,
-          resourceId: 'report', accessEventId, issuedAt, expiresAt, status: 'issued' }
-        leases.set(raw, lease)
-        record('access_granted', { requestId, accessEventId, subjectId: user.id, tenantId: user.tenantId, resourceId: 'report' })
-        record('lease_issued', { requestId, accessEventId, codeHash: createHash('sha256').update(raw).digest('hex') })
+        if (Date.parse(session.watermark.expiresAt) <= now()) return fail(res, 409, 'WATERMARK_EXPIRED', '水印已过期，请刷新', requestId)
+        record('access_granted', { requestId, subjectId: user.id, tenantId: user.tenantId, resourceId: 'report' })
         return send(res, 200, {
           content: REPORTS[user.tenantId],
-          watermark: { code, issuedAt, expiresAt,
-            displayText: `内部资料 · ${user.alias} · ${new Date(now()).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`,
-            policyVersion: 'v1', layout: { density: 'standard', opacity: 0.12 } },
+          watermark: session.watermark,
         }, requestId)
       }
 
+      if (req.method === 'POST' && pathname === '/api/demo/refresh-watermark') {
+        const watermark = issueWatermark(user)
+        sessions.set(session.sid, { user, watermark, expiresAt: session.expiresAt })
+        return send(res, 200, { watermark }, requestId)
+      }
       if (req.method === 'POST' && pathname === '/api/watermark/v1/verify') {
         if (user.role !== 'investigator') {
           record('verify_denied', { requestId, subjectId: user.id, tenantId: user.tenantId })
@@ -195,7 +210,8 @@ export function createApiServer({ now = () => Date.now(), signingAvailable = () 
           record('verify_invalid', { requestId, subjectId: user.id, tenantId: user.tenantId })
           return fail(res, 400, 'INVALID_INPUT', '核验输入无效', requestId)
         }
-        const lease = leases.get(raw)
+        const leaseRow = db.prepare('SELECT * FROM leases WHERE raw = ?').get(raw)
+        const lease = leaseRow && { code: formatCode(raw), tenantId: leaseRow.tenant_id, subjectId: leaseRow.subject_id, alias: leaseRow.alias, resourceId: leaseRow.resource_id, accessEventId: leaseRow.access_event_id, issuedAt: leaseRow.issued_at, expiresAt: leaseRow.expires_at }
         const codeHash = createHash('sha256').update(raw).digest('hex')
         if (!lease || lease.tenantId !== user.tenantId) {
           record(lease ? 'verify_cross_tenant' : 'verify_not_found', { requestId, subjectId: user.id,
@@ -212,11 +228,13 @@ export function createApiServer({ now = () => Date.now(), signingAvailable = () 
       return fail(res, 404, 'NOT_FOUND', '接口不存在', requestId)
     } catch (error) {
       if (error?.status) return fail(res, error.status, error.code, error.message, requestId)
-      record('server_error', { requestId })
-      return fail(res, 500, 'INTERNAL_ERROR', '服务暂不可用', requestId)
+      try { record('server_error', { requestId }) } catch { /* 数据库故障时仍需向客户端返回稳定错误 */ }
+      const storageFailed = typeof error?.code === 'string' && error.code.startsWith('SQLITE_')
+      return fail(res, storageFailed ? 503 : 500, storageFailed ? 'STORAGE_UNAVAILABLE' : 'INTERNAL_ERROR', '服务暂不可用', requestId)
     }
   })
 
+  server.on('close', () => db.close())
   return { server, getAudit: () => [...audit] }
 }
 
@@ -225,7 +243,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     throw new Error('演示身份和内存审计不可用于生产环境')
   }
   const port = Number(process.env.PORT ?? 4173)
-  const { server } = createApiServer({ webOrigin: process.env.WEB_ORIGIN ?? 'http://localhost:5173' })
+  const { server } = createApiServer({ webOrigin: process.env.WEB_ORIGIN ?? 'http://localhost:5173', dbPath: process.env.WM_DB_PATH ?? resolve('artifacts/runtime/watermark.sqlite') })
   server.listen(port, '127.0.0.1', () => {
     process.stdout.write(`Demo API listening on http://127.0.0.1:${port}\n`)
   })

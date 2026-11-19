@@ -57,3 +57,8 @@ button:disabled { opacity: .55; cursor: wait; }
 .footer { padding: 24px 0 32px; display: flex; justify-content: space-between; border-top: 1px solid #d8ded6; color: #91a29d; font: 10px 'DM Mono', monospace; }
 @media (max-width: 720px) { .topbar-right { display: none; } .hero { padding-top: 55px; } .identity-grid, .stat-grid, .verify-form { grid-template-columns: 1fr; }.hero-rule { gap: 18px; }.session-bar { align-items: flex-start; gap: 12px; flex-direction: column; }.lease-note { flex-wrap: wrap; }.lease-note button { margin-left: 40px; } }
 @media print { .topbar, .hero, .section-head, .session-bar, .footer, button { display: none !important; }.main-content { width: 100%; }.panel { box-shadow: none; border: none; } }
+
+.lab-panel { margin-top: 18px; }
+.watermark-preview { display: block; margin: 16px 0; border: 1px solid #d4dded; background: #f5f7fb; image-rendering: pixelated; }
+.upload-label { display: inline-flex; gap: 12px; align-items: center; flex-wrap: wrap; font-weight: 700; }
+.upload-label input { max-width: 100%; }
